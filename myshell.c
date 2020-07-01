@@ -144,7 +144,6 @@ void _run(pipekind kind)
 #define CHILD 0
 #define PARENT default
 #define previouspipe nextpipe
-#define CLOSE(_) close(_[READ]); close(_[WRITE])
 void execute(char **command, pipekind kind)
 {
 	void (*getnextcommand)() = redirect;
