@@ -50,7 +50,7 @@ void redirect_out(size_t index);
 void redirect_err(size_t index);
 void execute(char **command, pipekind kind);
 void erase(char **command);
-bool eof(char c);
+bool eof(int c);
 
 
 int main(int count, char *rawinput[])
@@ -312,7 +312,7 @@ void prompt()
 {
 	size_t i = 0, max = 4096;
 	char letter;
-	char *input = (char *)malloc(sizeof(char) * max);
+	char *input = malloc(sizeof(char) * max);
 
 	printf("$ ");
 
