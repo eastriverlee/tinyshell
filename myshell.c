@@ -326,7 +326,7 @@ void prompt()
 	free(input);
 }
 
-bool eof(char c)
+bool eof(int c)
 {
 	if (c == EOF) 
 	{
@@ -335,5 +335,3 @@ bool eof(char c)
 	}
 	else return false;
 }
-
-//thank you.
