@@ -273,7 +273,7 @@ void separate(char *commands)
 	char *token;
 	i = 0;
 	semicolons = 0;
-	fullcommand = (char **)malloc(sizeof(char *) * max);
+	fullcommand = malloc(sizeof(char *) * max);
 	token = strtok(commands, " ");
 	while (token != NULL) 
 	{
