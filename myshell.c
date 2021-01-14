@@ -288,7 +288,7 @@ void separate(char *commands)
 			strcpy(fullcommand[i], token);
 		}
 		token = strtok(NULL, " ");
-		if (i == max) fullcommand = (char **)realloc(fullcommand, max *= 2);
+		if (i == max) fullcommand = realloc(fullcommand, max *= 2);
 		i++;
 	}
 	fullcommand[i] = NULL;
@@ -319,7 +319,7 @@ void prompt()
 	for (i = 0; (letter = getchar()) != '\n'; i++) 
 	{
 		if (!eof(letter)) input[i] = letter;
-		if (i == max) input = (char *)realloc(input, max *= 2);
+		if (i == max) input = realloc(input, max *= 2);
 	}
 	input[i] = 0;
 	separate(input);
