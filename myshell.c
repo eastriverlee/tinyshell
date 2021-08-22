@@ -9,28 +9,29 @@
 
 /************************************************************************************
 
-CHECKLIST
+  CHECKLIST
 
-[commandline]
-o semicolons
-o redirection
-o pipe
-o background
-o mix
+  [commandline]
+  o semicolons (with space in front)
+  o ampersand (with space in front)
+  o redirection
+  o pipe
+  o mix
 
-[interactive]
-o EOF
-o semicolons
-o redirection
-o pipe
-o background
-o mix
+  [interactive]
+  o EOF
+  o semicolons (with space in front)
+  o ampersand (with space in front)
+  o redirection
+  o pipe
+  o mix
 
 ************************************************************************************/
 
 typedef enum {start, middle, end, nopipe} pipekind;
 typedef int pipe_io[2];
-char **fullcommand, **nextcommand, **command; 
+
+char **full_command, **nextcommand, **command; 
 char input_filename[512], output_filename[512], error_filename[512];
 size_t i, semicolons, next, pipes;
 bool interactive, commandline, background, alternate;
@@ -50,17 +51,17 @@ void redirect_out(size_t index);
 void redirect_err(size_t index);
 void execute(char **command, pipekind kind);
 void erase(char **command);
-bool eof(int c);
+bool is_end_of_file(int c);
 
-
-int main(int count, char *rawinput[])
+#define is_same !strcmp
+int main(int count, char *raw_input[])
 {
 	interactive = count == 1;
-	commandline = count == 3 && !strcmp("-c", rawinput[1]);
+	commandline = count == 3 && is_same(raw_input[1], "-c");
 	if (interactive) interact();
 	else if (commandline) 
 	{
-		separate(rawinput[2]);
+		separate(raw_input[2]);
 		run();
 	}
 	else printf("myshell: invalid input\n");
@@ -75,25 +76,25 @@ void interact()
 	}
 }
 
-#define moresemicolon (semicolons > 0)
-#define morepipe (pipes > 0)
+#define more_semicolon (semicolons > 0)
+#define more_pipe (pipes > 0)
 void run()
 {
 	size_t i;
+
 	while(true)
 	{ 
 		pipes = 0;
-		for(i = 0; command[i] != NULL; i++) if (!strcmp(command[i], "|")) pipes++;;
-		if (morepipe) connectpipe();
-		else _run(nopipe); 
-		if (moresemicolon)
+		for (i = 0; command[i]; i++) if (is_same(command[i], "|")) pipes++;
+		more_pipe ? connectpipe() : _run(nopipe); 
+		if (more_semicolon)
 		{
 			command = &command[1];
 			semicolons--;
 		}
 		else break;
 	}
-	free(fullcommand);
+	free(full_command);
 }
 
 #define currentpipe (alternate ? _file : file)
@@ -104,7 +105,7 @@ void connectpipe()
 	pipekind kind = start;
 	alternate = false;
 
-	for (i = 0; command[i] != NULL; i++) if (!strcmp(command[i], "|"))
+	for (i = 0; command[i]; i++) if (is_same(command[i], "|"))
 	{
 		erase(&command[i]);
 		while (true)
@@ -113,14 +114,14 @@ void connectpipe()
 			{
 				_run(kind);
 				pipes--;
-				if (*command == NULL) return;
-				for (j = 0; command[j] != NULL; j++) if (!strcmp(command[j], "|")) erase(&command[j]);;
-				if (!morepipe) 
+				if (!*command) return;
+				for (j = 0; command[j]; j++) if (is_same(command[j], "|")) erase(&command[j]);;
+				if (!more_pipe) 
 				{
 					_run(end);
 					return;
 				}
-				alternate = alternate ? false : true;
+				alternate = !alternate;
 			}
 			else perror("pipe()");
 			kind = middle;
@@ -130,12 +131,11 @@ void connectpipe()
 
 void _run(pipekind kind)
 {
-	while (*command != NULL)
+	while (*command)
 	{
-		execute(command, kind);
-		for (i = 0; i < next; i++) if (command != NULL) erase(&command[i]);;
+		execute(command, kind); for (i = 0; i < next; i++) if (command) erase(&command[i]);;
 		command = &command[next];
-		if (morepipe) break;
+		if (more_pipe) break;
 	}
 }
 
@@ -152,53 +152,54 @@ void execute(char **command, pipekind kind)
 	{
 		case ERROR: perror("fork()"); break;
 		case CHILD: 
-			    if (*command == NULL) exit(EXIT_SUCCESS);
-			    switch (kind)
-			    {
-				    case start: 
-				    		dup2(currentpipe[WRITE], STDOUT_FILENO);
-						break;
-				    case middle: 
-				    		dup2(previouspipe[READ], STDIN_FILENO); 
-				    		dup2(currentpipe[WRITE], STDOUT_FILENO);
-				    		break;
-				    case end:
-						dup2(currentpipe[READ], STDIN_FILENO);
-				    default:	break;
-			    }
-			    redirect();
-			    execvp(*command, command);
-			    perror(*command);
-			    _exit(EXIT_FAILURE);
+					if (!*command) exit(EXIT_SUCCESS);
+					switch (kind)
+					{
+						case start: 
+							dup2(currentpipe[WRITE], STDOUT_FILENO);
+							break;
+						case middle: 
+							dup2(previouspipe[READ], STDIN_FILENO); 
+							dup2(currentpipe[WRITE], STDOUT_FILENO);
+							break;
+						case end:
+							dup2(currentpipe[READ], STDIN_FILENO);
+						default: break;
+					}
+					redirect();
+					execvp(*command, command);
+					perror(*command);
+					_exit(EXIT_FAILURE);
 		PARENT:
-			    switch (kind)
-			    {
-				    case start: 
-				    		  close(currentpipe[WRITE]);
-				    		  break;
-				    case middle:  
-				    		  close(previouspipe[READ]);
-				    		  close(currentpipe[WRITE]);
-						  break;
-				    case end: 
-						  close(currentpipe[READ]);
-			    	    default:	  break;
-			    }
-			    if (!background) while(wait(NULL) > 0);;
-			    getnextcommand();
+					switch (kind)
+					{
+						case start: 
+							close(currentpipe[WRITE]);
+							break;
+						case middle:  
+							close(previouspipe[READ]);
+							close(currentpipe[WRITE]);
+							break;
+						case end: 
+							close(currentpipe[READ]);
+						default: break;
+					}
+					if (!background) while(wait(NULL) > 0);
+					getnextcommand();
 	}
 }
 
 void redirect()
 {
 	size_t i;
-	for (i = 0; command[i] != NULL; i++)
+
+	for (i = 0; command[i]; i++)
 	{
-		if (!strcmp(command[i], "<")) redirect_in(i++);	
-		else if (!strcmp(command[i], ">")) redirect_out(i++);
-		else if (!strcmp(command[i], "2>")) redirect_err(i++);
+		if (is_same(command[i], "<")) redirect_in(i++);	
+		else if (is_same(command[i], ">")) redirect_out(i++);
+		else if (is_same(command[i], "2>")) redirect_err(i++);
 	}
-	if (morepipe) i++;
+	if (more_pipe) i++;
 	next = i;
 }
 
@@ -271,34 +272,31 @@ void separate(char *commands)
 {
 	size_t max = 1024;
 	char *token;
+
 	i = 0;
 	semicolons = 0;
-	fullcommand = malloc(sizeof(char *) * max);
+	full_command = malloc(sizeof(char *) * max);
 	token = strtok(commands, " ");
-	while (token != NULL) 
+	while (token) 
 	{
-		if (!strcmp(token, ";")) 
+		if (is_same(token, ";")) 
 		{ 
-			fullcommand[i] = NULL;
+			full_command[i] = NULL;
 			semicolons++;
 		}
 		else
 		{
-			fullcommand[i] = malloc(sizeof(char) * (strlen(token) + 1));
-			strcpy(fullcommand[i], token);
+			full_command[i] = malloc(sizeof(char) * (strlen(token) + 1));
+			strcpy(full_command[i], token);
 		}
 		token = strtok(NULL, " ");
-		if (i == max) fullcommand = realloc(fullcommand, max *= 2);
+		if (i == max) full_command = realloc(full_command, max *= 2);
 		i++;
 	}
-	fullcommand[i] = NULL;
-	if (!strcmp(fullcommand[--i], "&")) 
-	{
-		background = true;
-		erase(&fullcommand[i]);
-	}
-	else background = false;
-	command = fullcommand;
+	full_command[i] = NULL;
+	background = is_same(full_command[--i], "&");
+	if (background) erase(&full_command[i]);
+	command = full_command;
 }
 
 void erase(char **command)
@@ -307,18 +305,17 @@ void erase(char **command)
 	*command = NULL;
 }
 
-
 void prompt()
 {
-	size_t i = 0, max = 4096;
-	char letter;
+	size_t i, max = 4096;
+	int letter;
 	char *input = malloc(sizeof(char) * max);
 
 	printf("$ ");
 
 	for (i = 0; (letter = getchar()) != '\n'; i++) 
 	{
-		if (!eof(letter)) input[i] = letter;
+		if (!is_end_of_file(letter)) input[i] = letter;
 		if (i == max) input = realloc(input, max *= 2);
 	}
 	input[i] = 0;
@@ -326,12 +323,12 @@ void prompt()
 	free(input);
 }
 
-bool eof(int c)
+bool is_end_of_file(int c)
 {
 	if (c == EOF) 
 	{
 		putchar('\n');
 		exit(EXIT_SUCCESS);
 	}
-	else return false;
+	return false;
 }
