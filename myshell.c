@@ -97,8 +97,8 @@ void run()
 	free(full_command);
 }
 
-#define currentpipe (alternate ? _file : file)
-#define nextpipe (alternate ? file : _file)
+#define current_pipe (alternate ? _file : file)
+#define previous_pipe (alternate ? file : _file)
 void connectpipe()
 {
 	size_t i, j;
@@ -110,7 +110,7 @@ void connectpipe()
 		erase(&command[i]);
 		while (true)
 		{
-			if (pipe(currentpipe) != ERROR)
+			if (pipe(current_pipe) != ERROR)
 			{
 				_run(kind);
 				pipes--;
@@ -143,7 +143,6 @@ void _run(pipekind kind)
 #define WRITE 1
 #define CHILD 0
 #define PARENT default
-#define previouspipe nextpipe
 void execute(char **command, pipekind kind)
 {
 	void (*getnextcommand)() = redirect;
@@ -156,14 +155,14 @@ void execute(char **command, pipekind kind)
 					switch (kind)
 					{
 						case start: 
-							dup2(currentpipe[WRITE], STDOUT_FILENO);
+							dup2(current_pipe[WRITE], STDOUT_FILENO);
 							break;
 						case middle: 
-							dup2(previouspipe[READ], STDIN_FILENO); 
-							dup2(currentpipe[WRITE], STDOUT_FILENO);
+							dup2(previous_pipe[READ], STDIN_FILENO); 
+							dup2(current_pipe[WRITE], STDOUT_FILENO);
 							break;
 						case end:
-							dup2(currentpipe[READ], STDIN_FILENO);
+							dup2(current_pipe[READ], STDIN_FILENO);
 						default: break;
 					}
 					redirect();
@@ -174,14 +173,14 @@ void execute(char **command, pipekind kind)
 					switch (kind)
 					{
 						case start: 
-							close(currentpipe[WRITE]);
+							close(current_pipe[WRITE]);
 							break;
 						case middle:  
-							close(previouspipe[READ]);
-							close(currentpipe[WRITE]);
+							close(previous_pipe[READ]);
+							close(current_pipe[WRITE]);
 							break;
 						case end: 
-							close(currentpipe[READ]);
+							close(current_pipe[READ]);
 						default: break;
 					}
 					if (!background) while(wait(NULL) > 0);
@@ -231,7 +230,7 @@ void redirect_out(size_t i)
 		erase(&command[i]);
 		strcpy(output_filename, command[++i]);
 		erase(&command[i]);
-		outfile = open(output_filename, O_RDWR | O_CREAT, 0777);
+		outfile = open(output_filename, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		if (outfile != ERROR)
 		{
 			dup2(outfile, STDOUT_FILENO);
@@ -253,7 +252,7 @@ void redirect_err(size_t i)
 		erase(&command[i]);
 		strcpy(error_filename, command[++i]);
 		erase(&command[i]);
-		errfile = open(error_filename, O_RDWR | O_CREAT, 0777);
+		errfile = open(error_filename, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		if (errfile != ERROR)
 		{
 			dup2(errfile, STDERR_FILENO);
