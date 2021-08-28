@@ -114,6 +114,7 @@ void connectpipe()
 			{
 				_run(kind);
 				pipes--;
+				alternate = !alternate;
 				if (!*command) return;
 				for (j = 0; command[j]; j++) if (is_same(command[j], "|")) erase(&command[j]);;
 				if (!more_pipe) 
@@ -121,7 +122,6 @@ void connectpipe()
 					_run(end);
 					return;
 				}
-				alternate = !alternate;
 			}
 			else perror("pipe()");
 			kind = middle;
@@ -157,12 +157,12 @@ void execute(char **command, pipekind kind)
 						case start: 
 							dup2(current_pipe[WRITE], STDOUT_FILENO);
 							break;
-						case middle: 
+						case middle:
 							dup2(previous_pipe[READ], STDIN_FILENO); 
 							dup2(current_pipe[WRITE], STDOUT_FILENO);
 							break;
 						case end:
-							dup2(current_pipe[READ], STDIN_FILENO);
+							dup2(previous_pipe[READ], STDIN_FILENO);
 						default: break;
 					}
 					redirect();
@@ -180,7 +180,7 @@ void execute(char **command, pipekind kind)
 							close(current_pipe[WRITE]);
 							break;
 						case end: 
-							close(current_pipe[READ]);
+							close(previous_pipe[READ]);
 						default: break;
 					}
 					if (!background) while(wait(NULL) > 0);
