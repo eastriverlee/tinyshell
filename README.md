@@ -4,9 +4,12 @@ a tiny shell made with c standard library, which handles multiple pipes and redi
 ## features
 - [x] interactive mode
 - [x] commandline mode
+- [x] background execution
+- [x] exit on EOF
 - [x] multiple pipes  
 - [x] multiple redirections  
 - [x] any combinations  
+- [ ] semicolon separation *(dropped after major refactoring)*
 
 # overview
 this program consists of three major parts:  
@@ -151,11 +154,37 @@ bool redirect_out(char **arguments)
 }
 ```
 redirect in is almost the same as above, but simpler due to the lack of append operator.  
-(it's been quite long, but handling heredoc was not pleasant, though that is not shown here)  
+*(it's been quite long, but handling heredoc was not pleasant, though that is not shown here)*  
 
-## main
+## main.c
 after that it's just combining them.
 ```c
+int pipe_count;
+int I;
+bool is_background;
+
+static void run(char ***commands)
+{
+	I = -1;
+	while (commands[++I])
+		if (*commands[I])
+			execute(commands[I]);
+	while (I-- > 0)
+		free_strings(commands[I]);
+	free(commands);
+}
+
+...
+
+static void parse_and_run(char *line)
+{
+	char ***commands;
+
+	is_background = line[strlen(line) - 1] == '&';
+	if ((commands = parse(line)))
+		run(commands);
+}
+
 int	main(int count, char **arguments)
 {
 	char *line;
@@ -168,4 +197,17 @@ int	main(int count, char **arguments)
 	else
 		parse_and_run(strdup(arguments[2]));
 }
+```
+
+## usage
+```bash
+cc *.c
+./a.out
+```
+commands you can test:
+```bash
+tinyshell$ ls -la | rev > test
+tinyshell$ cat test
+tinyshell$ cat test | rev | rev | rev > test_rev
+tinyshell$ cat test_rev
 ```
