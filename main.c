@@ -18,7 +18,7 @@ static void run(char ***commands)
 static bool read_(char **line, const char *prompt)
 {
 	size_t i = 0, max = 4096;
-	char letter;
+	int letter;
 
 	printf("%s", prompt);
 	*line = malloc(max);
